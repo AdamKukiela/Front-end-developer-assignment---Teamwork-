@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import "./PeopleTable.css";
 import { useQuery } from "react-query";
-import { getPeople } from "../../services/api";
+import { getPeople, getPlanet } from "../../services/api";
 import Person from "../../interfaces/Person.interface";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Alert, AlertTitle, Box, css, styled } from "@mui/material";
+import { Alert, AlertTitle, Box, styled } from "@mui/material";
 import {
   Table,
   TableBody,
@@ -14,9 +15,44 @@ import {
   Paper,
 } from "@mui/material";
 import dayjs from "dayjs";
+import PlanetInfo from "../PlanetInfo/PlanetInfo";
 
 const PeopleTable: React.FC = () => {
   const { data: people, isLoading, isError } = useQuery("people", getPeople);
+  const [selectedPlanetUrl, setSelectedPlanetUrl] = useState<string | null>(
+    null
+  );
+  const [planetInfo, setPlanetInfo] = useState<{ [key: string]: any }>({});
+  const [selectedPlanetEl, setSelectedPlanetEl] =
+    useState<HTMLTableCellElement | null>(null);
+
+  useEffect(() => {
+    const fetchPlanetInfo = async (planetUrl: string) => {
+      try {
+        const planetData = await getPlanet(planetUrl);
+        setPlanetInfo((prevInfo) => ({
+          ...prevInfo,
+          [planetUrl]: planetData,
+        }));
+      } catch (error) {
+        console.error("Error fetching planet info:", error);
+        setPlanetInfo((prevInfo) => ({
+          ...prevInfo,
+          [planetUrl]: null,
+        }));
+      }
+    };
+
+    if (people) {
+      people.forEach((person: Person) => {
+        fetchPlanetInfo(person.homeworld);
+      });
+    }
+  }, [people]);
+
+  const handlePlanetClick = (planetUrl: string) => {
+    setSelectedPlanetUrl(planetUrl);
+  };
 
   if (isLoading) {
     return (
@@ -59,11 +95,24 @@ const PeopleTable: React.FC = () => {
                   <TableCell>
                     {dayjs(person.edited).format("DD.MM.YYYY. HH:mm")}
                   </TableCell>
-                  <TableCell>{person.homeworld}</TableCell>
+                  <TableCell
+                    className="planet-name-style"
+                    onClick={() => handlePlanetClick(person.homeworld)}
+                  >
+                    {planetInfo[person.homeworld]?.name || <CircularProgress />}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          {selectedPlanetUrl && (
+            <PlanetInfo
+              planetUrl={selectedPlanetUrl}
+              open={Boolean(selectedPlanetUrl)}
+              anchorEl={selectedPlanetEl}
+              onClose={() => setSelectedPlanetUrl(null)}
+            />
+          )}
         </TableContainer>
       )}
     </div>
