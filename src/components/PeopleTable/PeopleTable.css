@@ -1,0 +1,7 @@
+.planet-name-style {
+  cursor: pointer;
+
+  &:hover {
+    color: red;
+  }
+}
