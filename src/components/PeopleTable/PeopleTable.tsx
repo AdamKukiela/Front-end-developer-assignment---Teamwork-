@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import "./PeopleTable.css";
 import { useQuery } from "react-query";
+import "./PeopleTable.css";
 import { getPeople, getPlanet } from "../../services/api";
 import Person from "../../interfaces/Person.interface";
 import CircularProgress from "@mui/material/CircularProgress";
-import { Alert, AlertTitle, Box, styled } from "@mui/material";
 import {
+  Alert,
+  AlertTitle,
+  Box,
+  styled,
   Table,
   TableBody,
   TableCell,
@@ -13,23 +16,31 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Typography,
+  TextField,
+  TableSortLabel,
 } from "@mui/material";
 import dayjs from "dayjs";
 import PlanetInfo from "../PlanetInfo/PlanetInfo";
+import Planet from "../../interfaces/Planet.interface";
 
 const PeopleTable: React.FC = () => {
   const { data: people, isLoading, isError } = useQuery("people", getPeople);
+  const [planetInfo, setPlanetInfo] = useState<{
+    [key: string]: Planet | null;
+  }>({});
+  const [selectedPlanetEl] = useState<HTMLTableCellElement | null>(null);
   const [selectedPlanetUrl, setSelectedPlanetUrl] = useState<string | null>(
     null
   );
-  const [planetInfo, setPlanetInfo] = useState<{ [key: string]: any }>({});
-  const [selectedPlanetEl, setSelectedPlanetEl] =
-    useState<HTMLTableCellElement | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortColumn, setSortColumn] = useState<string>("name");
 
   useEffect(() => {
     const fetchPlanetInfo = async (planetUrl: string) => {
       try {
-        const planetData = await getPlanet(planetUrl);
+        const planetData: Planet = await getPlanet(planetUrl);
         setPlanetInfo((prevInfo) => ({
           ...prevInfo,
           [planetUrl]: planetData,
@@ -50,6 +61,60 @@ const PeopleTable: React.FC = () => {
     }
   }, [people]);
 
+  const filteredPeople = people?.filter((person: Person) =>
+    person.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSortByColumn = (column: string) => {
+    if (sortColumn === column) {
+      setSortOrder((prevSortOrder) => {
+        return prevSortOrder === "asc" ? "desc" : "asc";
+      });
+    } else {
+      setSortColumn(column);
+      setSortOrder("asc");
+    }
+  };
+
+  const sortFunction = (a: Person, b: Person) => {
+    const getPlanetName = (person: Person) =>
+      planetInfo[person.homeworld]?.name || "";
+
+    if (sortOrder === "asc") {
+      switch (sortColumn) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "planet":
+          return getPlanetName(a).localeCompare(getPlanetName(b));
+        case "height":
+        case "mass":
+          return parseFloat(a[sortColumn]) - parseFloat(b[sortColumn]);
+        case "created":
+        case "edited":
+          return dayjs(a[sortColumn]).unix() - dayjs(b[sortColumn]).unix();
+        default:
+          return 0;
+      }
+    } else {
+      switch (sortColumn) {
+        case "name":
+          return b.name.localeCompare(a.name);
+        case "planet":
+          return getPlanetName(b).localeCompare(getPlanetName(a));
+        case "height":
+        case "mass":
+          return parseFloat(b[sortColumn]) - parseFloat(a[sortColumn]);
+        case "created":
+        case "edited":
+          return dayjs(b[sortColumn]).unix() - dayjs(a[sortColumn]).unix();
+        default:
+          return 0;
+      }
+    }
+  };
+
+  const sortedPeople = [...(filteredPeople || [])].sort(sortFunction);
+
   const handlePlanetClick = (planetUrl: string) => {
     setSelectedPlanetUrl(planetUrl);
   };
@@ -63,8 +128,28 @@ const PeopleTable: React.FC = () => {
   }
 
   return (
-    <div>
-      <h2>List of People</h2>
+    <Box className="container">
+      <Typography className="title" variant="h4">
+        List of People
+      </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          marginBottom: "30px",
+          marginTop: "30px",
+        }}
+      >
+        <Box>
+          <TextField
+            label="Search People"
+            variant="outlined"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            size="small"
+          />
+        </Box>
+      </Box>
+
       {isError ? (
         <Alert severity="error">
           <AlertTitle>Error</AlertTitle>
@@ -75,16 +160,64 @@ const PeopleTable: React.FC = () => {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Height</TableCell>
-                <TableCell>Mass</TableCell>
-                <TableCell>Created</TableCell>
-                <TableCell>Edited</TableCell>
-                <TableCell>Planet Name</TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "name"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("name")}
+                  >
+                    Name
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "height"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("height")}
+                  >
+                    Height
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "mass"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("mass")}
+                  >
+                    Mass
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "created"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("created")}
+                  >
+                    Created
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "edited"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("edited")}
+                  >
+                    Edited
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortColumn === "planet"}
+                    direction={sortOrder}
+                    onClick={() => handleSortByColumn("planet")}
+                  >
+                    Planet Name
+                  </TableSortLabel>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {people.map((person: Person) => (
+              {sortedPeople?.map((person: Person) => (
                 <TableRow key={person.name}>
                   <TableCell>{person.name}</TableCell>
                   <TableCell>{person.height}</TableCell>
@@ -98,6 +231,7 @@ const PeopleTable: React.FC = () => {
                   <TableCell
                     className="planet-name-style"
                     onClick={() => handlePlanetClick(person.homeworld)}
+                    sx={{ fontWeight: "bold" }}
                   >
                     {planetInfo[person.homeworld]?.name || <CircularProgress />}
                   </TableCell>
@@ -115,7 +249,7 @@ const PeopleTable: React.FC = () => {
           )}
         </TableContainer>
       )}
-    </div>
+    </Box>
   );
 };
 
