@@ -1,6 +1,5 @@
 import React from "react";
 import { useQuery } from "react-query";
-import Planet from "../../interfaces/Planet.interface";
 import { getPlanet } from "../../services/api";
 import {
   Alert,
